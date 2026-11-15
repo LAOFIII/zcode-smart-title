@@ -1,0 +1,4 @@
+# The hook entry points are POSIX sh scripts (also parsed by cmd.exe on
+# Windows). CRLF checkouts break them with "$'\r': command not found", so the
+# whole repo stays LF regardless of the platform or core.autocrlf setting.
+* text=auto eol=lf

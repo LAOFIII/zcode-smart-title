@@ -1,0 +1,39 @@
+#!/bin/sh
+# Entry point for the smart-title hooks.
+#
+#   smart-title-hook check-hook      <- UserPromptSubmit
+#   smart-title-hook record-rename   <- PostToolUse (RenameSession)
+#
+# Contract with ZCode: always exit 0 and always emit a single JSON object on
+# stdout. Anything that goes wrong (no Python, DB locked, bad payload) degrades
+# to "{}" so the user's turn is never blocked or slowed.
+
+subcommand=$1
+[ -n "$subcommand" ] || exit 0
+
+root_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd) || exit 0
+
+find_python() {
+    for candidate in "py -3" "py" "python3" "python"; do
+        # shellcheck disable=SC2086
+        if $candidate -c 'import sys, sqlite3
+raise SystemExit(0 if sys.version_info >= (3, 8) else 1)' >/dev/null 2>&1; then
+            printf '%s' "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
+py=$(find_python) || { printf '{}'; exit 0; }
+
+out=$(
+    PYTHONUTF8=1 PYTHONIOENCODING=utf-8 \
+    $py "$root_dir/scripts/smart_title_core.py" "$subcommand" 2>/dev/null
+)
+
+case "$out" in
+    \{*\}) printf '%s' "$out" ;;
+    *) printf '{}' ;;
+esac
+exit 0

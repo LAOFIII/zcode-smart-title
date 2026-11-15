@@ -1,0 +1,29 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" smart-title-hook check-hook",
+            "timeoutMs": 8000,
+            "onError": "allow"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "^RenameSession$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" smart-title-hook record-rename",
+            "timeoutMs": 8000,
+            "onError": "allow"
+          }
+        ]
+      }
+    ]
+  }
+}
