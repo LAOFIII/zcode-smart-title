@@ -1,7 +1,7 @@
 {
   "name": "smart-title",
   "displayName": "Smart Title",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "对话演进时自动刷新会话标题，支持 /smart-title 立即刷新与历史会话批量回填；用户手动改过的标题永不覆盖。",
   "description_i18n": {
     "en": "Refreshes session titles as the conversation evolves, with /smart-title manual refresh and batch backfill for older sessions. Titles renamed by hand are never overwritten.",

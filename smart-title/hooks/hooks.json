@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" smart-title-hook check-hook",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" smart-title-hook check-hook || sh \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" smart-title-hook check-hook",
             "timeoutMs": 8000,
             "onError": "allow"
           }
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" smart-title-hook record-rename",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" smart-title-hook record-rename || sh \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" smart-title-hook record-rename",
             "timeoutMs": 8000,
             "onError": "allow"
           }

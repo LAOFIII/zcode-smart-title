@@ -483,7 +483,8 @@ def build_hint(session_id, config, context):
     reason = context.get("reason") or ""
     parts = [
         "[smart-title] 本轮正常完成任务后，请额外调用一次 RenameSession 工具"
-        '（sessionId="%s"），把本会话标题改写为能概括整段对话最终目标的具体短语：'
+        '（若为延迟工具请先通过 LocalToolSearch/ToolSearch 加载，sessionId="%s"），'
+        "把本会话标题改写为能概括整段对话最终目标的具体短语："
         "中文 ≤ %d 字、英文 ≤ %d 个词，不加引号/书名号/句号，不加「标题：」之类前缀，"
         "不使用 Markdown。" % (session_id, cjk, words)
     ]

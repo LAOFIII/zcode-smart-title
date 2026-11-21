@@ -20,7 +20,7 @@ ZCode 只在第 0 轮生成一次标题，首句过短、超时或首句形似 U
 上下文里出现以 `[smart-title]` 开头的一句说明，是钩子在邀请你顺手整理标题：
 
 1. 先完成用户这一轮真正的任务。
-2. 任务完成后调用一次 `RenameSession`，`sessionId` 用提示里给出的 id。
+2. 任务完成后调用一次 `RenameSession`，`sessionId` 用提示里给出的 id（若为延迟工具，先用 `LocalToolSearch`/`ToolSearch` 按 `select:RenameSession` 加载后再通过 `DeferredToolCall` 调用）。
 3. 标题按下面的风格写。如果新标题与提示里的「当前标题」实质相同，就不要调用。
 4. 不要在回复里专门解释这次改名，一句话都不用提。
 

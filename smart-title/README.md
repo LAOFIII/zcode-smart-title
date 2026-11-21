@@ -71,7 +71,7 @@ py -3 "$ROOT/scripts/backfill_titles.py" revert --name 20261115-102932
 
 ## 钩子的容错约定
 
-钩子在任何异常下都输出 `{}` 并 `exit 0`：没有 Python、数据库被锁、载荷格式不对，都只会让这一轮静默跳过，不会阻塞对话。Python 解释器按 `py -3` → `py` → `python3` → `python` 顺序探测，并要求 ≥ 3.8 且带 `sqlite3`；Windows 上通过 `hooks/run-hook.cmd`（cmd/sh 双语包装器）调用，与官方 `design` 插件同一套做法。
+钩子在任何异常下都输出 `{}` 并 `exit 0`：没有 Python、数据库被锁、载荷格式不对，都只会让这一轮静默跳过，不会阻塞对话。Python 解释器按 `py -3` → `py` → `python3` → `python` 顺序探测，并要求 ≥ 3.8 且带 `sqlite3`；Windows 上由 `hooks/run-hook.cmd` 直接调用 Python（无需绕经 Git Bash，仅作兜底），macOS/Linux 自动走同一文件底部的 POSIX `sh` 分支。
 
 ## 已知边界
 

@@ -9,7 +9,7 @@
       "name": "smart-title",
       "displayName": "Smart Title",
       "source": "./smart-title",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "description": "对话演进时自动刷新会话标题：/smart-title 立即刷新、历史会话批量回填、手动改名永不覆盖。",
       "displayName_i18n": {
         "zh-CN": "智能标题",

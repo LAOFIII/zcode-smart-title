@@ -1,5 +1,5 @@
 #!/bin/sh
-# Entry point for the smart-title hooks.
+# Entry point for the smart-title hooks (POSIX / Git Bash path).
 #
 #   smart-title-hook check-hook      <- UserPromptSubmit
 #   smart-title-hook record-rename   <- PostToolUse (RenameSession)
@@ -9,15 +9,19 @@
 # to "{}" so the user's turn is never blocked or slowed.
 
 subcommand=$1
-[ -n "$subcommand" ] || exit 0
+[ -n "$subcommand" ] || { printf '{}'; exit 0; }
 
-root_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd) || exit 0
+root_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd) || { printf '{}'; exit 0; }
+core_py="$root_dir/scripts/smart_title_core.py"
+[ -f "$core_py" ] || { printf '{}'; exit 0; }
 
 find_python() {
     for candidate in "py -3" "py" "python3" "python"; do
+        bin=${candidate%% *}
+        command -v "$bin" >/dev/null 2>&1 || continue
         # shellcheck disable=SC2086
-        if $candidate -c 'import sys, sqlite3
-raise SystemExit(0 if sys.version_info >= (3, 8) else 1)' >/dev/null 2>&1; then
+        if $candidate -c 'import sqlite3, sys
+raise SystemExit(0 if sys.version_info >= (3, 8) else 1)' </dev/null >/dev/null 2>&1; then
             printf '%s' "$candidate"
             return 0
         fi
@@ -29,7 +33,7 @@ py=$(find_python) || { printf '{}'; exit 0; }
 
 out=$(
     PYTHONUTF8=1 PYTHONIOENCODING=utf-8 \
-    $py "$root_dir/scripts/smart_title_core.py" "$subcommand" 2>/dev/null
+    $py "$core_py" "$subcommand" 2>/dev/null
 )
 
 case "$out" in

@@ -1,81 +1,105 @@
 ---
-description: 刷新当前会话标题，或回填卡在首句截断的历史会话（now / status / backfill / lock / unlock）
+description: 刷新当前会话标题，或查看状态/回填历史/锁定配置（now / status / backfill / lock / unlock / config）
 argument-hint: [now|status|backfill [N]|lock|unlock|config]
-allowed-tools: Bash, Read, RenameSession
+allowed-tools: Bash, Read, RenameSession, LocalToolSearch, DeferredToolCall, ToolSearch
 ---
 
 # /smart-title
 
-管理 ZCode 会话标题。用户参数：`$ARGUMENTS`（为空时等同于 `now`）。
+用户参数：`$ARGUMENTS`
 
-脚本位置：先取 `${ZCODE_PLUGIN_ROOT}`，若为空或不存在则用 `~/.zcode/plugins/smart-title`。
-Python 解释器优先 `py -3`，否则 `python3`。所有脚本都强制 UTF-8。
+## 严格路由（先匹配第一词，再只执行该分支）
+
+- **参数为空** 或 **`now`** → 只执行 **now**
+- **`status`** → 只执行 **status**。**严禁调用 `RenameSession`！**
+- **`backfill` [N]** → 只执行 **backfill**。**严禁顺便修改当前会话标题！**
+- **`lock`** / **`unlock`** → 只执行 **lock / unlock**。**严禁调用 `RenameSession`！**
+- **`config` ...** → 只执行 **config**。**严禁调用 `RenameSession`！**
+
+## 定位 Python 与插件目录（脚本类分支共用）
+
+执行任何脚本前，用下面片段定位可用的 Python 与插件目录（不要硬编码单一路径，优先使用已安装缓存路径）：
+
+```bash
+PY=""
+for c in "py -3" py python3 python; do
+  $c -c "import sqlite3,sys;raise SystemExit(0 if sys.version_info>=(3,8) else 1)" </dev/null >/dev/null 2>&1 && { PY="$c"; break; }
+done
+ROOT=$(PYTHONUTF8=1 $PY -c '
+import glob, json, os
+env_root = os.environ.get("ZCODE_PLUGIN_ROOT", "")
+if env_root and os.path.isfile(os.path.join(env_root, "scripts", "smart_title_core.py")):
+    print(env_root.replace("\\", "/")); raise SystemExit(0)
+ip = os.path.expanduser("~/.zcode/cli/plugins/installed_plugins.json")
+if os.path.isfile(ip):
+    items = [x for x in json.load(open(ip, encoding="utf-8")).get("plugins", []) if x.get("name") == "smart-title"]
+    for item in sorted(items, key=lambda x: x.get("updatedAt", ""), reverse=True):
+        p = item.get("installPath", "")
+        if os.path.isfile(os.path.join(p, "scripts", "smart_title_core.py")):
+            print(p.replace("\\", "/")); raise SystemExit(0)
+hits = sorted(glob.glob(os.path.expanduser("~/.zcode/cli/plugins/cache/*/smart-title/*")), reverse=True)
+for h in hits + [os.path.expanduser("~/.zcode/plugins/smart-title")]:
+    if os.path.isfile(os.path.join(h, "scripts", "smart_title_core.py")):
+        print(h.replace("\\", "/")); raise SystemExit(0)
+')
+```
 
 ## 通用约定
 
-- **当前这个会话**在 ZCode 内存里持有标题，只能通过内置 `RenameSession` 工具改名；直接改数据库会在下一轮被覆盖。
-- **历史非活跃会话**只能通过 `backfill_titles.py` 写库，`RenameSession` 对它们会报错。
-- 标题风格：能概括整段对话最终目标的具体短语；中文 ≤ 16 字、英文 ≤ 6 个词；不加引号、书名号、句号，不加「标题：」前缀，不用 Markdown。
+- **当前会话**在 ZCode 内存里持有标题，只能通过内置 `RenameSession` 工具改名；直接写库会在下一轮被覆盖。若 `RenameSession` 是延迟工具，先通过 `LocalToolSearch`/`ToolSearch`（`query: "select:RenameSession"`）加载后再用 `DeferredToolCall`（或直接调用）执行。
+- **历史非活跃会话**不在内存中，必须通过 `backfill_titles.py` 写库，`RenameSession` 对它们会拒绝。
+- 标题风格：概括整段对话最终目标的名词短语；中文 ≤ 16 字、英文 ≤ 6 个词；不加引号、书名号、句号，不加「标题：」前缀，不用 Markdown。
 
-## now（默认）
+## now（仅在参数为空或 `now` 时执行）
 
-1. 取当前会话 id：`$ZCODE_SESSION_ID`（不存在时用 `echo "$CLAUDE_SESSION_ID"`）。
-2. 读取对话主旨（你自己的上下文即可，不需要脚本回放）。
-3. 调用 `RenameSession`，`sessionId` 用第 1 步的值，`title` 用上面风格生成的标题。
-4. 一句话告知用户新标题。如果新标题与现有标题实质相同，就不要调用工具，直接说明无需改动。
+1. 取当前会话 id：`$ZCODE_SESSION_ID`（不存在时取 `$CLAUDE_SESSION_ID`）。
+2. 根据你上下文里的对话主旨生成标题（遵守上面的标题风格）。
+3. 若 `RenameSession` 未加载，先加载它；调用 `RenameSession` 传入 `sessionId` 与 `title`。若新标题与当前已知标题实质相同，则不调用并说明无需改动。
+4. 一句话告知用户新标题。
 
-## status
-
-运行：
+## status（仅查状态，禁止改名）
 
 ```bash
-ROOT="${ZCODE_PLUGIN_ROOT}"; [ -d "$ROOT" ] || ROOT="$HOME/.zcode/plugins/smart-title"
-py -3 "$ROOT/scripts/smart_title_core.py" status
+PYTHONUTF8=1 $PY "$ROOT/scripts/smart_title_core.py" status
 ```
 
-把输出里的「标题 / 来源 / 轮次 / 状态 / 判定」简明汇报给用户，不要贴原始 JSON。
+只把输出里的「标题 / 来源 / 用户轮次 / 状态 / 判定」简明汇报给用户，不要贴原始 JSON，**也不要调用 `RenameSession`**。
 
 ## backfill [N]
 
-回填历史会话（默认 20 个，`N` 为数量上限）。
+回填历史非活跃会话（默认 20 个，`N` 为数量上限）。**不要修改当前会话。**
 
 1. 列出候选：
 
 ```bash
-py -3 "$ROOT/scripts/backfill_titles.py" list-candidates --limit N --json
+PYTHONUTF8=1 $PY "$ROOT/scripts/backfill_titles.py" list-candidates --limit 20 --json
 ```
 
-2. 依据每个候选的 `transcript`（首句 + 最近几轮）为每个会话生成一个标题，遵守上面的风格。
-3. **先给用户一张预览表**（会话 id 简写 | 现有标题 | 建议标题），并说明将要写入两个数据库、写入前会自动备份。只对用户确认过的条目执行。
-4. 把确认后的条目写成 JSON 文件（`[{"sessionId": "...", "title": "..."}]`），执行：
+2. 依据每个候选的 `transcript`（首句 + 最近几轮）生成标题，遵守上面的风格。
+3. **先给用户展示预览表**（会话 id 简写 | 现有标题 | 建议标题），说明写前会自动快照双库并保留回滚清单。只对用户确认的条目写入。
+4. 把确认后的条目写入临时 JSON（`[{"sessionId": "...", "title": "..."}]`），执行：
 
 ```bash
-py -3 "$ROOT/scripts/backfill_titles.py" apply-batch --file <json路径>
+PYTHONUTF8=1 $PY "$ROOT/scripts/backfill_titles.py" apply-batch --file "<json路径>"
 ```
 
-5. 汇报写入条数、跳过原因、备份目录。需要撤销时用 `revert`：
+5. 汇报写入条数、跳过原因与备份目录。需要撤销时：
 
 ```bash
-py -3 "$ROOT/scripts/backfill_titles.py" list-backups
-py -3 "$ROOT/scripts/backfill_titles.py" revert --name <备份名>
+PYTHONUTF8=1 $PY "$ROOT/scripts/backfill_titles.py" list-backups
+PYTHONUTF8=1 $PY "$ROOT/scripts/backfill_titles.py" revert --name "<备份名>"
 ```
 
-注意：`apply-batch` 会跳过当前活跃会话（提示改用 RenameSession）与 `title_overridden = 1` 的会话，这是预期行为，不要绕过。
-
-## lock / unlock
-
-用户希望某个会话不再被自动改名时：`lock`；恢复自动刷新：`unlock`。二者都作用于当前会话：
+## lock / unlock（仅改锁定状态，禁止改名）
 
 ```bash
-py -3 "$ROOT/scripts/smart_title_core.py" lock
-py -3 "$ROOT/scripts/smart_title_core.py" unlock
+PYTHONUTF8=1 $PY "$ROOT/scripts/smart_title_core.py" lock
+PYTHONUTF8=1 $PY "$ROOT/scripts/smart_title_core.py" unlock
 ```
 
-## config
-
-查看或修改配置（`refreshMinIntervalMs`、`refreshMinTurns`、`refreshMaxTurns`、`targetCjkCharacters`、`targetWords`、`enabled` 等）：
+## config（仅查改配置，禁止改名）
 
 ```bash
-py -3 "$ROOT/scripts/smart_title_core.py" config
-py -3 "$ROOT/scripts/smart_title_core.py" config --set refreshMinTurns=3
+PYTHONUTF8=1 $PY "$ROOT/scripts/smart_title_core.py" config
+PYTHONUTF8=1 $PY "$ROOT/scripts/smart_title_core.py" config --set refreshMinTurns=3
 ```

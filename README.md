@@ -44,7 +44,7 @@ marketplace.json                     市场清单
 smart-title/
   .zcode-plugin/plugin.json          插件清单
   hooks/hooks.json                   UserPromptSubmit + PostToolUse(RenameSession)
-  hooks/run-hook.cmd                 cmd/sh 双语包装器（Windows 无 bash 时静默退出）
+  hooks/run-hook.cmd                 cmd/sh 双语包装器（Windows 直接调 Python，不依赖 Git Bash）
   hooks/smart-title-hook             解释器探测 + JSON 兜底
   scripts/smart_title_core.py        触发判定、改名归因、状态与配置
   scripts/backfill_titles.py         历史会话扫描、批量写库、备份与回滚
